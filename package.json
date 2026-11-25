@@ -1,0 +1,12 @@
+{
+  "name": "stackhero-stk-bot",
+  "version": "1.0.0",
+  "description": "Batch M-Pesa STK Push Bot using Stack Hero",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
