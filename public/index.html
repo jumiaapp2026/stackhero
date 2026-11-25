@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stack Hero STK Push Bot</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      max-width: 760px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .card {
+      background: #1e293b;
+      padding: 1.5rem;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      margin-bottom: 1.5rem;
+    }
+    h1 { margin-top: 0; font-size: 1.4rem; }
+    label { display: block; margin-top: 1rem; font-weight: 600; font-size: 0.9rem; }
+    textarea, input {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 0.4rem;
+      padding: 0.7rem;
+      border-radius: 6px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #f8fafc;
+      font-size: 0.95rem;
+    }
+    .row { display: flex; gap: 1rem; }
+    .row > div { flex: 1; }
+    .actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+    button {
+      padding: 0.75rem 1.25rem;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #startBtn { background: #10b981; color: #06281e; }
+    #startBtn:hover { background: #34d399; }
+    #stopBtn { background: #ef4444; color: #fff; }
+    #stopBtn:hover { background: #f87171; }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      background: #334155;
+      margin-bottom: 0.75rem;
+    }
+    #logBox {
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 0.75rem;
+      height: 320px;
+      overflow-y: auto;
+      font-family: ui-monospace, monospace;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+    .log-entry { margin-bottom: 0.4rem; border-bottom: 1px solid #1e293b; padding-bottom: 0.3rem; }
+    .SUCCESS, .CALLBACK { color: #34d399; }
+    .ERROR { color: #f87171; }
+    .WARN { color: #fbbf24; }
+    .INFO, .WAIT { color: #38bdf8; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Stack Hero STK Push Bot (5s Interval)</h1>
+    <div id="statusBadge" class="badge">Status: Idle | Queue: 0</div>
+
+    <label for="phones">Phone Numbers (one per line, or comma-separated)</label>
+    <textarea id="phones" rows="6" placeholder="0712345678&#10;254798765432&#10;0110123456"></textarea>
+
+    <div class="row">
+      <div>
+        <label for="amount">Amount (KES)</label>
+        <input id="amount" type="number" min="1" max="250000" value="100" />
+      </div>
+      <div>
+        <label for="reference">Reference Prefix</label>
+        <input id="reference" type="text" value="INV" maxlength="30" />
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="startBtn" onclick="startBatch()">Start Sending (5s Delay)</button>
+      <button id="stopBtn" onclick="stopBatch()">Stop & Clear Queue</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0; font-size:1.1rem;">Live Execution Logs (Mirrored to Render Logs)</h2>
+    <div id="logBox"></div>
+  </div>
+
+  <script>
+    async function startBatch() {
+      const phonesText = document.getElementById('phones').value;
+      const amount = document.getElementById('amount').value;
+      const referencePrefix = document.getElementById('reference').value;
+
+      const res = await fetch('/api/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phonesText, amount, referencePrefix })
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.message);
+      } else {
+        document.getElementById('phones').value = '';
+        refreshStatus();
+      }
+    }
+
+    async function stopBatch() {
+      await fetch('/api/stop', { method: 'POST' });
+      refreshStatus();
+    }
+
+    async function refreshStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+
+        document.getElementById('statusBadge').textContent =
+          `Status: ${data.isProcessing ? 'Running' : 'Idle'} | Queue: ${data.queueLength}`;
+
+        const logBox = document.getElementById('logBox');
+        logBox.innerHTML = data.logs.map(item => {
+          const extra = item.data ? ` ${JSON.stringify(item.data)}` : '';
+          return `<div class="log-entry ${item.level}">[${item.timestamp}] [${item.level}] ${item.message}${extra}</div>`;
+        }).join('');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    setInterval(refreshStatus, 2000);
+    refreshStatus();
+  </script>
+</body>
+</html>
